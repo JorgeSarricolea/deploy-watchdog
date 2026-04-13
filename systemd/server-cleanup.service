@@ -1,0 +1,8 @@
+[Unit]
+Description=Weekly server cleanup (Docker images, apt cache, journal logs)
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/server-cleanup.sh
+Nice=19
+IOSchedulingClass=idle

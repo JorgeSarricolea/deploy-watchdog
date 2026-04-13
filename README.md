@@ -1,6 +1,6 @@
 # deploy-watchdog
 
-Catches missed Coolify deployments when rapid pushes overlap with in-progress builds.
+VPS automation for personal projects: catches missed Coolify deployments and runs weekly server cleanup.
 
 ## Problem
 
@@ -71,21 +71,36 @@ ln -sf /path/to/deploy-watchdog/pre-push ~/.config/git/hooks/pre-push
 
 3. Re-run `./install.sh` to update the VPS.
 
+## Server Cleanup
+
+A weekly cleanup timer (`Sundays 04:00 UTC`) that frees disk space:
+
+- **Docker**: dangling images, stopped containers, unused networks, old images (>48h, not running), build cache, unused volumes
+- **System**: apt package cache, journal logs (>7d, cap 100M), stale `/tmp` files (>7d)
+- **App-specific**: old Prisma migration temp dirs
+
+Logs to `/var/log/server-cleanup.log`. Last run freed ~1.6 GB.
+
 ## Files
 
 | File | Where it lives | Purpose |
 |---|---|---|
 | `deploy-watchdog.sh` | VPS: `/usr/local/bin/` | Checks for missed deploys, triggers Coolify |
+| `server-cleanup.sh` | VPS: `/usr/local/bin/` | Weekly Docker/system cleanup |
 | `pre-push` | Local: `~/.config/git/hooks/` | Notifies VPS of each push |
 | `systemd/deploy-watchdog.timer` | VPS: `/etc/systemd/system/` | Runs watchdog every 2 min |
-| `systemd/deploy-watchdog.service` | VPS: `/etc/systemd/system/` | Systemd service wrapper |
+| `systemd/deploy-watchdog.service` | VPS: `/etc/systemd/system/` | Watchdog service wrapper |
+| `systemd/server-cleanup.timer` | VPS: `/etc/systemd/system/` | Runs cleanup weekly (Sun 04:00) |
+| `systemd/server-cleanup.service` | VPS: `/etc/systemd/system/` | Cleanup service wrapper |
 | `install.sh` | Local | Deploys everything to VPS |
 | `.env` | VPS: `/etc/deploy-watchdog.env` | Coolify token and config |
 
 ## Logs
 
 ```bash
+# Watchdog (auto-trimmed to 500 lines)
 ssh your-server 'cat /root/.deploy-watchdog/watchdog.log'
-```
 
-Logs auto-trim to 500 lines.
+# Server cleanup
+ssh your-server 'cat /var/log/server-cleanup.log'
+```
