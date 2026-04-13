@@ -1,0 +1,9 @@
+[Unit]
+Description=Deploy Watchdog — catches missed Coolify builds
+After=network-online.target docker.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/deploy-watchdog.sh
+TimeoutStartSec=60

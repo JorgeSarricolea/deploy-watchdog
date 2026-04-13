@@ -1,0 +1,91 @@
+# deploy-watchdog
+
+Catches missed Coolify deployments when rapid pushes overlap with in-progress builds.
+
+## Problem
+
+When you push multiple commits in quick succession, Coolify's webhook listener drops events while a build is already running. The result: your latest code never gets deployed until you manually trigger a rebuild.
+
+## How it works
+
+Two-part system:
+
+```
+git push (rapid, 3 times)
+  │
+  ├─ GitHub webhook → Coolify (might miss it if busy)
+  │
+  └─ pre-push hook → SSH → writes expected commit to VPS
+                              │
+                    ┌─────────┘
+                    ▼
+          deploy-watchdog.sh (runs every 2 min via systemd)
+                    │
+                    ├─ expected ≠ deployed?
+                    │     └─ wait 90s settle (no more pushes?)
+                    │           └─ trigger Coolify API → deploy ✓
+                    │
+                    └─ expected = deployed? → skip (all good)
+```
+
+**Settle logic**: after detecting a new commit, the watchdog waits 90 seconds before triggering a deploy. If another push arrives during that window, the timer resets. This prevents deploying mid-burst.
+
+## Setup
+
+### 1. Create env file
+
+```bash
+cp .env.example .env
+# Edit .env with your Coolify API token and server details
+```
+
+### 2. Install on VPS
+
+```bash
+./install.sh root@your-server.com
+```
+
+This copies the script, systemd units, and env file to the server.
+
+### 3. Set up local git hook
+
+```bash
+# Option A: use this directory as your global hooks path
+git config --global core.hooksPath /path/to/deploy-watchdog
+
+# Option B: symlink just the pre-push hook
+ln -sf /path/to/deploy-watchdog/pre-push ~/.config/git/hooks/pre-push
+```
+
+## Adding a new project
+
+1. In `deploy-watchdog.sh`, add an entry to the `PROJECTS` associative array:
+   ```bash
+   [my-new-project]="coolify-app-uuid"
+   ```
+
+2. In `pre-push`, add an entry to the `PROJECTS` array:
+   ```bash
+   "my-new-project|my-new-project|main"
+   ```
+
+3. Re-run `./install.sh` to update the VPS.
+
+## Files
+
+| File | Where it lives | Purpose |
+|---|---|---|
+| `deploy-watchdog.sh` | VPS: `/usr/local/bin/` | Checks for missed deploys, triggers Coolify |
+| `pre-push` | Local: `~/.config/git/hooks/` | Notifies VPS of each push |
+| `systemd/deploy-watchdog.timer` | VPS: `/etc/systemd/system/` | Runs watchdog every 2 min |
+| `systemd/deploy-watchdog.service` | VPS: `/etc/systemd/system/` | Systemd service wrapper |
+| `install.sh` | Local | Deploys everything to VPS |
+| `.env` | VPS: `/etc/deploy-watchdog.env` | Coolify token and config |
+
+## Logs
+
+```bash
+ssh your-server 'cat /root/.deploy-watchdog/watchdog.log'
+```
+
+Logs auto-trim to 500 lines.

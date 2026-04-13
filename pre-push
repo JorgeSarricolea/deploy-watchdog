@@ -1,0 +1,51 @@
+#!/usr/bin/env bash
+# Global pre-push hook — notifies VPS of incoming deploy
+# Works with the deploy-watchdog service on the server.
+#
+# This hook runs BEFORE the push. It backgrounds a task that waits
+# for the push to complete, then tells the VPS "expect this commit".
+# The VPS watchdog will ensure Coolify picks it up.
+#
+# Install: git config --global core.hooksPath <path-to-this-directory>
+#   or symlink to ~/.config/git/hooks/pre-push
+
+# ── Project registry ──────────────────────────────────────────────
+# Format: pattern|project_name|deploy_branch
+# Add new entries when onboarding a project.
+PROJECTS=(
+  "workhub|workhub|main"
+  "mikascoffee|mikascoffee|main"
+  "portfolio|portfolio|prod"
+)
+
+SSH_HOST="${DEPLOY_WATCHDOG_SSH_HOST:-root@jorgesarricolea.com}"
+STATE_DIR="/root/.deploy-watchdog"
+
+(
+  sleep 3  # wait for push to finish
+
+  commit=$(git rev-parse HEAD 2>/dev/null || exit 0)
+  branch=$(git rev-parse --abbrev-ref HEAD 2>/dev/null || exit 0)
+  remote_url=$(git remote get-url origin 2>/dev/null || exit 0)
+
+  project=""
+  deploy_branch=""
+  for entry in "${PROJECTS[@]}"; do
+    IFS='|' read -r pattern proj db <<< "$entry"
+    if [[ "$remote_url" == *"$pattern"* ]]; then
+      project="$proj"
+      deploy_branch="$db"
+      break
+    fi
+  done
+
+  [ -n "$project" ] || exit 0
+  [ "$branch" = "$deploy_branch" ] || exit 0
+
+  ssh -o ConnectTimeout=5 -o StrictHostKeyChecking=accept-new \
+    "$SSH_HOST" \
+    "echo '$commit' > $STATE_DIR/$project.expected" \
+    2>/dev/null
+) &
+
+exit 0

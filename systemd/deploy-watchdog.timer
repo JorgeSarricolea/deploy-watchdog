@@ -1,0 +1,11 @@
+[Unit]
+Description=Run deploy watchdog every 2 minutes
+
+[Timer]
+OnBootSec=60
+OnUnitActiveSec=120
+AccuracySec=10
+Persistent=true
+
+[Install]
+WantedBy=timers.target
