@@ -73,7 +73,7 @@ ln -sf /path/to/deploy-watchdog/pre-push ~/.config/git/hooks/pre-push
 
 ## Server Cleanup
 
-A weekly cleanup timer (`Sundays 04:00 UTC`) that frees disk space:
+A daily cleanup timer (`23:00 UTC`) that frees disk space:
 
 - **Docker**: dangling images, stopped containers, unused networks, old images (>48h, not running), build cache, unused volumes
 - **System**: apt package cache, journal logs (>7d, cap 100M), stale `/tmp` files (>7d)
@@ -90,7 +90,7 @@ Logs to `/var/log/server-cleanup.log`. Last run freed ~1.6 GB.
 | `pre-push` | Local: `~/.config/git/hooks/` | Notifies VPS of each push |
 | `systemd/deploy-watchdog.timer` | VPS: `/etc/systemd/system/` | Runs watchdog every 2 min |
 | `systemd/deploy-watchdog.service` | VPS: `/etc/systemd/system/` | Watchdog service wrapper |
-| `systemd/server-cleanup.timer` | VPS: `/etc/systemd/system/` | Runs cleanup weekly (Sun 04:00) |
+| `systemd/server-cleanup.timer` | VPS: `/etc/systemd/system/` | Runs cleanup daily at 23:00 UTC |
 | `systemd/server-cleanup.service` | VPS: `/etc/systemd/system/` | Cleanup service wrapper |
 | `install.sh` | Local | Deploys everything to VPS |
 | `.env` | VPS: `/etc/deploy-watchdog.env` | Coolify token and config |
