@@ -95,6 +95,14 @@ Logs to `/var/log/server-cleanup.log`. Last run freed ~1.6 GB.
 | `install.sh` | Local | Deploys everything to VPS |
 | `.env` | VPS: `/etc/deploy-watchdog.env` | Coolify token and config |
 
+## Other cron jobs on the VPS
+
+Not managed by this project, but documented here for reference:
+
+| Schedule | Command | Purpose |
+|---|---|---|
+| `* * * * *` | `curl .../api/cron/notifications` | Workhub push notification check (every minute) |
+
 ## Logs
 
 ```bash
